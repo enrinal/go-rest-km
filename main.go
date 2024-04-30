@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
 	"log"
-	"net/http"
 	"rest/handler"
 	"rest/repository"
 	"rest/service"
@@ -17,8 +17,37 @@ func main() {
 	studentHandler := handler.NewStudentHandler(studentService)
 
 	// start the server
-	mux := http.NewServeMux()
-	mux.HandleFunc("/student", studentHandler.StudentHandler)
-	log.Println("Server started on port 8080")
-	http.ListenAndServe(":8080", mux)
+	r := gin.Default()
+
+	// create group student
+	student := r.Group("/students")
+
+	// set middleware basic auth
+	student.Use(gin.BasicAuth(gin.Accounts{
+		"admin": "admin",
+		"user":  "user",
+	}))
+
+	student.Use(func(c *gin.Context) {
+		// do something
+
+		// log ip
+		ip := c.ClientIP()
+		log.Println("IP:", ip)
+
+		c.Next()
+	})
+
+	// define routes
+	student.GET("/", studentHandler.GetStudents)
+	student.GET("/:id", studentHandler.GetStudentByID)
+	student.POST("/", studentHandler.CreateStudent)
+	student.PUT("/:id", studentHandler.UpdateStudent)
+	student.DELETE("/:id", studentHandler.DeleteStudent)
+
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, "OK")
+	})
+
+	r.Run(":8080")
 }
